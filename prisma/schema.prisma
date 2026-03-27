@@ -1,0 +1,212 @@
+// Life OS - Full Prisma Schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── USER SETTINGS ────────────────────────────────────────────────
+model UserSettings {
+  id                String   @id @default("default")
+  name              String   @default("User")
+  semesterStart     DateTime?
+  semesterEnd       DateTime?
+  googleAccessToken  String?
+  googleRefreshToken String?
+  googleTokenExpiry  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ─── CLASS SCHEDULE ───────────────────────────────────────────────
+model ClassSchedule {
+  id        String   @id @default(cuid())
+  courseName String
+  daysOfWeek String  // JSON array: ["Mon","Wed","Fri"]
+  startTime  String  // "09:00"
+  endTime    String  // "10:30"
+  location   String?
+  color      String  @default("#6366f1")
+  createdAt  DateTime @default(now())
+}
+
+// ─── SCHEDULER ────────────────────────────────────────────────────
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  deadline      DateTime?
+  priority      String    @default("medium") // high, medium, low
+  estimatedMins Int       @default(60)
+  category      String    @default("personal") // study, personal, health, work
+  status        String    @default("pending") // pending, in_progress, completed
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  scheduledBlocks ScheduledBlock[]
+}
+
+model ScheduledPlan {
+  id        String   @id @default(cuid())
+  date      DateTime
+  approved  Boolean  @default(false)
+  aiSummary String?
+  createdAt DateTime @default(now())
+
+  blocks ScheduledBlock[]
+}
+
+model ScheduledBlock {
+  id        String        @id @default(cuid())
+  planId    String
+  taskId    String?
+  title     String
+  startTime String        // "09:00"
+  endTime   String        // "10:00"
+  type      String        @default("task") // task, class, break, google
+  color     String?
+
+  plan ScheduledPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  task Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+}
+
+// ─── SPEND TRACKER ────────────────────────────────────────────────
+model Expense {
+  id        String   @id @default(cuid())
+  amount    Float
+  category  String   // Food, Transport, Entertainment, Shopping, Health, Education, Subscriptions, Other
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+model Budget {
+  id         String  @id @default(cuid())
+  category   String  @unique
+  monthlyLimit Float
+  weeklyLimit  Float?
+}
+
+model FinanceBadge {
+  id        String   @id @default(cuid())
+  badgeKey  String   @unique // e.g. "first_week_under_budget"
+  name      String
+  description String
+  icon      String
+  earnedAt  DateTime @default(now())
+}
+
+// ─── HEALTH OS ────────────────────────────────────────────────────
+model Workout {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now())
+  exercises String   // JSON array of exercise objects
+  notes     String?
+  duration  Int      // total minutes
+  createdAt DateTime @default(now())
+}
+
+model Meal {
+  id        String   @id @default(cuid())
+  name      String
+  mealType  String   // breakfast, lunch, dinner, snack
+  calories  Int?
+  protein   Float?   // grams
+  carbs     Float?   // grams
+  fats      Float?   // grams
+  time      String?  // "08:30"
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+model SleepLog {
+  id        String   @id @default(cuid())
+  bedtime   DateTime
+  wakeTime  DateTime
+  duration  Float    // hours, auto-calculated
+  quality   Int      // 1-10
+  notes     String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+model MentalHealthCheckin {
+  id        String   @id @default(cuid())
+  answers   String   // JSON: [{question, answer, score}]
+  totalScore Int     // 0-100 internal score
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+model HealthBadge {
+  id          String   @id @default(cuid())
+  badgeKey    String   @unique
+  name        String
+  description String
+  icon        String
+  earnedAt    DateTime @default(now())
+}
+
+// ─── CS LEARNING TRACKER ─────────────────────────────────────────
+model Resource {
+  id          String   @id @default(cuid())
+  title       String
+  type        String   // course, book, video, article, podcast
+  url         String?
+  platform    String?  // YouTube, Coursera, Udemy, MIT OCW, Other
+  topicTags   String   // JSON array of topic strings
+  progress    Int      @default(0) // 0-100
+  notes       String?
+  totalHours  Float    @default(0)
+  lastStudied DateTime?
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studySessions StudySession[]
+  studyPlans    StudyPlan[]
+}
+
+model StudySession {
+  id         String   @id @default(cuid())
+  resourceId String
+  duration   Int      // minutes
+  topicsCovered String? // free text
+  notes      String?
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+}
+
+model StudyPlan {
+  id         String   @id @default(cuid())
+  resourceId String?
+  topic      String
+  content    String   // AI-generated plan (markdown)
+  createdAt  DateTime @default(now())
+
+  resource Resource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+}
+
+model LearningBadge {
+  id          String   @id @default(cuid())
+  badgeKey    String   @unique
+  name        String
+  description String
+  icon        String
+  earnedAt    DateTime @default(now())
+}
+
+// ─── QUOTES ───────────────────────────────────────────────────────
+model Quote {
+  id     String @id @default(cuid())
+  text   String
+  author String
+}
