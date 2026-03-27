@@ -87,7 +87,9 @@ export default function LearningPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // AI state
-  const [aiResult, setAiResult] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [aiResult, setAiResult] = useState<Record<string, any> | null>(null);
+  const [aiType, setAiType] = useState<string>("");
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [selectedForPlan, setSelectedForPlan] = useState<string>("");
 
@@ -217,7 +219,8 @@ export default function LearningPage() {
         body: JSON.stringify({ type, resourceId }),
       });
       const data = await res.json();
-      setAiResult(JSON.stringify(data, null, 2));
+      setAiResult(data);
+      setAiType(type);
     } catch {
       toast.error("AI suggestion failed. Check GROQ_API_KEY.");
     } finally {
@@ -497,15 +500,144 @@ Please create a comprehensive study guide for this resource including:
             </div>
           )}
 
-          {aiResult && (
-            <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">AI Result</span>
+          {aiResult && aiType === "knowledge-gaps" && (
+            <div className="space-y-4">
+              {aiResult.nextFocus && (
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                  <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wide mb-1">Start Here</p>
+                  <p className="text-sm font-medium">{aiResult.nextFocus}</p>
+                </div>
+              )}
+              {aiResult.criticalGaps?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Critical Gaps</p>
+                  <div className="flex flex-wrap gap-2">
+                    {aiResult.criticalGaps.map((g: string) => (
+                      <span key={g} className="text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-1 rounded-md">{g}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {aiResult.recommendations?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recommendations</p>
+                  {aiResult.recommendations.map((r: { topic: string; priority: string; whyItMatters: string; suggestedResource: string }) => (
+                    <div key={r.topic} className="p-3 rounded-lg border border-border bg-card space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{r.topic}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${
+                          r.priority === "critical" ? "bg-rose-500/15 text-rose-400" :
+                          r.priority === "high" ? "bg-amber-500/15 text-amber-400" :
+                          "bg-secondary text-muted-foreground"
+                        }`}>{r.priority}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{r.whyItMatters}</p>
+                      <p className="text-xs text-primary">→ {r.suggestedResource}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {aiResult.strengths?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Strengths</p>
+                  <div className="flex flex-wrap gap-2">
+                    {aiResult.strengths.map((s: string) => (
+                      <span key={s} className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-md">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {aiResult && aiType === "reminders" && (
+            <div className="space-y-4">
+              {aiResult.dueForReview?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Due for Review</p>
+                  {aiResult.dueForReview.map((r: { title: string; daysSinceStudied: number; urgency: string; suggestedDuration: number }) => (
+                    <div key={r.title} className={`flex items-center justify-between p-3 rounded-lg border bg-card ${
+                      r.urgency === "overdue" ? "border-rose-500/30" :
+                      r.urgency === "due_today" ? "border-amber-500/30" :
+                      "border-border"
+                    }`}>
+                      <div>
+                        <p className="text-sm font-medium">{r.title}</p>
+                        <p className="text-xs text-muted-foreground">{r.daysSinceStudied} days since last study</p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                          r.urgency === "overdue" ? "bg-rose-500/15 text-rose-400" :
+                          r.urgency === "due_today" ? "bg-amber-500/15 text-amber-400" :
+                          "bg-secondary text-muted-foreground"
+                        }`}>{r.urgency.replace("_", " ")}</span>
+                        <p className="text-xs text-muted-foreground mt-1">{r.suggestedDuration}min</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {aiResult.upcomingReviews?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Coming Up</p>
+                  {aiResult.upcomingReviews.map((r: { title: string; dueIn: string }) => (
+                    <div key={r.title} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <span className="text-sm">{r.title}</span>
+                      <span className="text-xs text-muted-foreground">{r.dueIn}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {aiResult && aiType === "study-plan" && (
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm">
+                <div className="p-3 rounded-lg bg-card border border-border text-center flex-1">
+                  <p className="text-xl font-bold text-primary">{aiResult.totalWeeks}</p>
+                  <p className="text-xs text-muted-foreground">Weeks</p>
+                </div>
+                <div className="p-3 rounded-lg bg-card border border-border text-center flex-1">
+                  <p className="text-xl font-bold text-emerald-400">{aiResult.weeklyHours}</p>
+                  <p className="text-xs text-muted-foreground">hrs/week</p>
+                </div>
               </div>
-              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono overflow-auto max-h-96">
-                {aiResult}
-              </pre>
+              <div className="space-y-3">
+                {aiResult.plan?.map((week: { week: number; focus: string; keyConcepts: string[]; practiceProblems: string[]; milestone: string }) => (
+                  <div key={week.week} className="p-3 rounded-lg border border-border bg-card space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center font-bold shrink-0">{week.week}</span>
+                      <span className="text-sm font-medium">{week.focus}</span>
+                    </div>
+                    {week.keyConcepts?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {week.keyConcepts.map((c: string) => (
+                          <span key={c} className="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded">{c}</span>
+                        ))}
+                      </div>
+                    )}
+                    {week.practiceProblems?.length > 0 && (
+                      <ul className="space-y-0.5">
+                        {week.practiceProblems.map((p: string) => (
+                          <li key={p} className="text-xs text-muted-foreground flex items-start gap-1.5"><span className="text-primary mt-0.5">•</span>{p}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {week.milestone && (
+                      <p className="text-xs text-emerald-400 italic">✓ {week.milestone}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {aiResult.tips?.length > 0 && (
+                <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-1.5">
+                  <p className="text-xs font-semibold text-primary uppercase tracking-wide">Pro Tips</p>
+                  {aiResult.tips.map((t: string) => (
+                    <p key={t} className="text-xs text-foreground flex items-start gap-1.5"><span className="text-primary mt-0.5">→</span>{t}</p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </TabsContent>

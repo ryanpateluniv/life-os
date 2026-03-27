@@ -109,7 +109,9 @@ export default function HealthPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // AI suggestions
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [aiSuggestion, setAiSuggestion] = useState<Record<string, any> | null>(null);
+  const [aiSuggestionType, setAiSuggestionType] = useState<string>("");
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
 
   // Workout form
@@ -297,7 +299,8 @@ export default function HealthPage() {
         body: JSON.stringify({ type }),
       });
       const data = await res.json();
-      setAiSuggestion(JSON.stringify(data, null, 2));
+      setAiSuggestion(data);
+      setAiSuggestionType(type);
     } catch {
       toast.error("AI suggestion failed");
     } finally {
@@ -595,15 +598,110 @@ export default function HealthPage() {
               </button>
             ))}
           </div>
-          {aiSuggestion && (
-            <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">AI Coach</span>
+          {aiSuggestion && aiSuggestionType === "workout" && (
+            <div className="space-y-3">
+              {aiSuggestion.restNeeded && (
+                <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm text-amber-400">
+                  💤 Your body needs rest today — light activity only.
+                </div>
+              )}
+              <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">{aiSuggestion.suggestion}</p>
+                  <span className="text-xs text-muted-foreground">{aiSuggestion.duration} min</span>
+                </div>
+                {aiSuggestion.muscleGroups?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiSuggestion.muscleGroups.map((m: string) => (
+                      <span key={m} className="text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded capitalize">{m}</span>
+                    ))}
+                  </div>
+                )}
+                {aiSuggestion.reasoning && (
+                  <p className="text-xs text-muted-foreground italic">{aiSuggestion.reasoning}</p>
+                )}
+                {aiSuggestion.exercises?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Exercises</p>
+                    {aiSuggestion.exercises.map((ex: { name: string; sets: number; reps: string; notes?: string }) => (
+                      <div key={ex.name} className="flex items-start justify-between py-2 border-b border-border last:border-0">
+                        <div>
+                          <p className="text-sm font-medium">{ex.name}</p>
+                          {ex.notes && <p className="text-xs text-muted-foreground">{ex.notes}</p>}
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0 ml-2">{ex.sets} × {ex.reps}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <pre className="text-xs text-foreground whitespace-pre-wrap font-mono overflow-auto max-h-64">
-                {aiSuggestion}
-              </pre>
+            </div>
+          )}
+
+          {aiSuggestion && aiSuggestionType === "meal" && (
+            <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+              <div>
+                <p className="font-semibold">{aiSuggestion.mealSuggestion}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{aiSuggestion.why}</p>
+              </div>
+              {aiSuggestion.simpleRecipe && (
+                <div className="p-3 rounded-lg bg-secondary/50 text-sm">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">How to make it</p>
+                  <p className="text-xs text-foreground">{aiSuggestion.simpleRecipe}</p>
+                </div>
+              )}
+              {aiSuggestion.nutritionEstimate && (
+                <div className="flex gap-3">
+                  <div className="flex-1 text-center p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-sm font-bold text-amber-400">{aiSuggestion.nutritionEstimate.calories}</p>
+                    <p className="text-[10px] text-muted-foreground">cal</p>
+                  </div>
+                  <div className="flex-1 text-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-sm font-bold text-blue-400">{aiSuggestion.nutritionEstimate.protein}g</p>
+                    <p className="text-[10px] text-muted-foreground">protein</p>
+                  </div>
+                </div>
+              )}
+              {aiSuggestion.gaps?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Nutritional Gaps</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiSuggestion.gaps.map((g: string) => (
+                      <span key={g} className="text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded">{g}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {aiSuggestion && aiSuggestionType === "mental" && (
+            <div className="space-y-3">
+              <div className={`p-4 rounded-xl border text-center ${
+                aiSuggestion.overallStatus === "thriving" ? "border-emerald-500/30 bg-emerald-500/5" :
+                aiSuggestion.overallStatus === "good" ? "border-blue-500/30 bg-blue-500/5" :
+                aiSuggestion.overallStatus === "struggling" ? "border-rose-500/30 bg-rose-500/5" :
+                "border-border bg-card"
+              }`}>
+                <p className={`text-lg font-bold capitalize ${
+                  aiSuggestion.overallStatus === "thriving" ? "text-emerald-400" :
+                  aiSuggestion.overallStatus === "good" ? "text-blue-400" :
+                  aiSuggestion.overallStatus === "struggling" ? "text-rose-400" :
+                  "text-foreground"
+                }`}>{aiSuggestion.overallStatus}</p>
+                <p className="text-xs text-muted-foreground mt-1">{aiSuggestion.insight}</p>
+              </div>
+              {aiSuggestion.suggestion && (
+                <div className="p-3 rounded-lg border border-border bg-card">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Action</p>
+                  <p className="text-sm">{aiSuggestion.suggestion}</p>
+                </div>
+              )}
+              {aiSuggestion.affirmation && (
+                <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                  <p className="text-sm text-primary italic">&ldquo;{aiSuggestion.affirmation}&rdquo;</p>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
