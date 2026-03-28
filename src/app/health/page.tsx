@@ -150,8 +150,8 @@ export default function HealthPage() {
 
   const loadData = useCallback(async () => {
     const [wRes, mRes, sRes, cRes, bRes] = await Promise.all([
-      fetch("/api/workouts?days=7"),
-      fetch("/api/meals?days=1"),
+      fetch("/api/workouts?days=8"),
+      fetch("/api/meals?days=2"),
       fetch("/api/sleep?days=14"),
       fetch("/api/checkins?days=30"),
       fetch("/api/badges/health"),
@@ -169,9 +169,9 @@ export default function HealthPage() {
     setCheckins(cData.checkins || []);
     setBadges(b);
 
-    const today = new Date().toDateString();
+    const todayLocal = new Date().toLocaleDateString("en-CA");
     const todayC = (cData.checkins || []).find(
-      (c: Checkin) => new Date(c.date).toDateString() === today
+      (c: Checkin) => new Date(c.date).toLocaleDateString("en-CA") === todayLocal
     );
     setTodayCheckin(todayC || null);
   }, []);
@@ -183,14 +183,15 @@ export default function HealthPage() {
   // Health score
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayDateStr = today.toLocaleDateString("en-CA");
   const todayWorkout = workouts.find(
-    (w) => new Date(w.date).toDateString() === today.toDateString()
+    (w) => new Date(w.date).toLocaleDateString("en-CA") === todayDateStr
   );
   const todayMeals = meals.filter(
-    (m) => new Date(m.date).toDateString() === today.toDateString()
+    (m) => new Date(m.date).toLocaleDateString("en-CA") === todayDateStr
   );
   const todaySleep = sleepLogs.find(
-    (s) => new Date(s.date).toDateString() === today.toDateString()
+    (s) => new Date(s.date).toLocaleDateString("en-CA") === todayDateStr
   );
   let healthScore = 0;
   if (todayWorkout) healthScore += 25;
